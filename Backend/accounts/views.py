@@ -1,15 +1,72 @@
+from django.contrib.auth import get_user_model
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny, IsAdminUser
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
+from rest_framework.exceptions import AuthenticationFailed
+
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 
 from .serializers import UserProfileSerializer
-from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
+class AdminTokenObtainPairSerializer(TokenObtainPairSerializer):
+    def validate(self, attrs):
+        data = super().validate(attrs)
+
+        if not self.user.is_staff:
+            raise AuthenticationFailed("Admin access only.")
+
+        return data
+
+
+class AdminLoginAPIView(TokenObtainPairView):
+    serializer_class = AdminTokenObtainPairSerializer
+
+
+class AdminLogoutAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def post(self, request):
+        refresh_token = request.data.get("refresh")
+
+        if not refresh_token:
+            return Response(
+                {
+                    "success": False,
+                    "message": "Refresh token is required.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+
+            return Response(
+                {
+                    "success": True,
+                    "message": "Logout successful.",
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except (TokenError, InvalidToken):
+            return Response(
+                {
+                    "success": False,
+                    "message": "Invalid or expired refresh token.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
 class PublicProfileAPIView(APIView):
+
     permission_classes = [AllowAny]
 
     def get(self, request):
@@ -19,7 +76,7 @@ class PublicProfileAPIView(APIView):
             return Response(
                 {
                     "success": False,
-                    "message": "Portfolio profile not found",
+                    "message": "Profile not found",
                 },
                 status=status.HTTP_404_NOT_FOUND,
             )
