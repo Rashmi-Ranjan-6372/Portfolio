@@ -1,5 +1,6 @@
 
 import { useState } from 'react'
+import api from '../api/axios'
 
 function Contact() {
     const [formData, setFormData] = useState({
@@ -9,24 +10,56 @@ function Contact() {
         message: '',
     })
 
+    const [loading, setLoading] = useState(false)
+    const [status, setStatus] = useState({
+        type: '',
+        message: '',
+    })
+
     const handleChange = (event) => {
-        setFormData({
-            ...formData,
-            [event.target.name]: event.target.value,
-        })
+        const { name, value } = event.target
+
+        setFormData((previous) => ({
+            ...previous,
+            [name]: value,
+        }))
     }
 
-    const handleSubmit = (event) => {
+    const handleSubmit = async (event) => {
         event.preventDefault()
+        setLoading(true)
+        setStatus({ type: '', message: '' })
 
-        const subject = encodeURIComponent(formData.subject)
-        const body = encodeURIComponent(
-            `Name: ${formData.name}\nEmail: ${formData.email}\n\n${formData.message}`,
-        )
+        try {
+            await api.post('contact/', formData)
 
-        window.location.href =
-            `mailto:rashmiranjan6372@gmail.com?subject=${subject}&body=${body}`
+            setStatus({
+                type: 'success',
+                message: 'Your message has been submitted successfully. Thank you for contacting me!',
+            })
+
+            setFormData({
+                name: '',
+                email: '',
+                subject: '',
+                message: '',
+            })
+        } catch (error) {
+            const responseData = error.response?.data
+
+            setStatus({
+                type: 'error',
+                message:
+                    responseData?.message ||
+                    'Unable to submit your message. Please try again later.',
+            })
+        } finally {
+            setLoading(false)
+        }
     }
+
+    const inputClass =
+        'w-full rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50 disabled:cursor-not-allowed disabled:opacity-60'
 
     return (
         <section
@@ -51,7 +84,9 @@ function Contact() {
             <div className="grid gap-8 lg:grid-cols-5">
                 <div className="space-y-5 lg:col-span-2">
                     <div className="glass rounded-3xl p-6 sm:p-8">
-                        <h3 className="text-xl font-bold">Contact Information</h3>
+                        <h3 className="text-xl font-bold">
+                            Contact Information
+                        </h3>
 
                         <p className="mt-3 leading-7 text-slate-400">
                             I'm interested in backend development opportunities,
@@ -116,23 +151,26 @@ function Contact() {
                     <div className="glass rounded-3xl p-6">
                         <div className="flex items-center gap-3">
                             <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+
                             <p className="font-medium text-slate-200">
                                 Open to professional connections
                             </p>
                         </div>
 
                         <p className="mt-3 text-sm leading-6 text-slate-400">
-                            Connect with me to discuss Python, Django, REST APIs, databases,
-                            and backend engineering.
+                            Connect with me to discuss Python, Django, REST APIs,
+                            databases, and backend engineering.
                         </p>
                     </div>
                 </div>
 
                 <div className="glass rounded-3xl p-6 sm:p-8 lg:col-span-3">
-                    <h3 className="text-xl font-bold">Send Me a Message</h3>
+                    <h3 className="text-xl font-bold">
+                        Send Me a Message
+                    </h3>
 
                     <p className="mt-2 text-sm leading-6 text-slate-400">
-                        Fill in the details below to prepare an email message.
+                        Fill in the details below to send your message directly through this website.
                     </p>
 
                     <form onSubmit={handleSubmit} className="mt-7 space-y-5">
@@ -150,10 +188,12 @@ function Contact() {
                                     name="name"
                                     type="text"
                                     required
+                                    maxLength={100}
                                     value={formData.name}
                                     onChange={handleChange}
                                     placeholder="Enter your name"
-                                    className="w-full rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50"
+                                    className={inputClass}
+                                    disabled={loading}
                                 />
                             </div>
 
@@ -173,7 +213,8 @@ function Contact() {
                                     value={formData.email}
                                     onChange={handleChange}
                                     placeholder="you@example.com"
-                                    className="w-full rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50"
+                                    className={inputClass}
+                                    disabled={loading}
                                 />
                             </div>
                         </div>
@@ -191,10 +232,12 @@ function Contact() {
                                 name="subject"
                                 type="text"
                                 required
+                                maxLength={200}
                                 value={formData.subject}
                                 onChange={handleChange}
                                 placeholder="What would you like to discuss?"
-                                className="w-full rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50"
+                                className={inputClass}
+                                disabled={loading}
                             />
                         </div>
 
@@ -214,21 +257,35 @@ function Contact() {
                                 value={formData.message}
                                 onChange={handleChange}
                                 placeholder="Write your message here..."
-                                className="w-full resize-y rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50"
+                                className={`${inputClass} resize-y`}
+                                disabled={loading}
                             />
                         </div>
 
+                        {status.message && (
+                            <div
+                                role="status"
+                                aria-live="polite"
+                                className={`rounded-xl border p-4 text-sm leading-6 ${status.type === 'success'
+                                        ? 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200'
+                                        : 'border-red-300/20 bg-red-300/10 text-red-200'
+                                    }`}
+                            >
+                                {status.message}
+                            </div>
+                        )}
+
                         <button
                             type="submit"
-                            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-violet-500 px-6 py-3.5 font-semibold text-slate-950 transition hover:scale-[1.01] sm:w-auto"
+                            disabled={loading}
+                            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-violet-500 px-6 py-3.5 font-semibold text-slate-950 transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
                         >
-                            Prepare Email
-                            <span aria-hidden="true">↗</span>
+                            {loading ? 'Sending Message...' : 'Send Message'}
+                            {!loading && <span aria-hidden="true">↗</span>}
                         </button>
 
                         <p className="text-xs leading-5 text-slate-500">
-                            This form opens your default email application. It does not
-                            send or save messages directly on this website.
+                            Your message will be saved in the website database and can be managed through the admin panel.
                         </p>
                     </form>
                 </div>
